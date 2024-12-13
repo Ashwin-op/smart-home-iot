@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Device Controller</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .status {
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100 text-gray-900 font-sans p-6">
+    <h1 class="text-3xl font-bold text-center mb-6">Device Controller</h1>
+
+    <!-- LED Control -->
+    <div class="section bg-white shadow-md rounded p-4 mb-6">
+      <h2 class="text-xl font-semibold mb-4">LED Control</h2>
+      <div class="mb-4">
+        <p class="mb-2">LED 1: <span id="led1-status" class="status text-blue-600">Unknown</span></p>
+        <button id="led1-on" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Turn On</button>
+        <button id="led1-off" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Turn Off</button>
+      </div>
+      <div>
+        <p class="mb-2">LED 2: <span id="led2-status" class="status text-blue-600">Unknown</span></p>
+        <button id="led2-on" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Turn On</button>
+        <button id="led2-off" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Turn Off</button>
+      </div>
+    </div>
+
+    <!-- Fan Control -->
+    <div class="section bg-white shadow-md rounded p-4 mb-6">
+      <h2 class="text-xl font-semibold mb-4">Fan Control</h2>
+      <p class="mb-2">Fan: <span id="fan-status" class="status text-blue-600">Unknown</span></p>
+      <button id="fan-on" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Turn On</button>
+      <button id="fan-off" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Turn Off</button>
+    </div>
+
+    <!-- Alarm Control -->
+    <div class="section bg-white shadow-md rounded p-4 mb-6">
+      <h2 class="text-xl font-semibold mb-4">Alarm</h2>
+      <p class="mb-4">Current Alarm: <span id="alarm-time" class="status text-blue-600">None</span></p>
+      <form id="alarm-form" class="flex items-center">
+        <label for="alarm" class="mr-2">Set Alarm (HH:MM):</label>
+        <input type="time" id="alarm" name="time" required class="border border-gray-300 rounded px-2 py-1 mr-2" />
+        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Save</button>
+      </form>
+    </div>
+
+    <!-- Health Check -->
+    <div class="section bg-white shadow-md rounded p-4">
+      <h2 class="text-xl font-semibold mb-4">System Health</h2>
+      <p class="mb-4">Status: <span id="health-status" class="status text-blue-600">Checking...</span></p>
+      <button id="check-health" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+        Check Health
+      </button>
+    </div>
+
+    <script>
+      // Base URL for API requests
+      const BASE_URL = 'https://fh5fqmsrsf.us-east-1.awsapprunner.com';
+
+      // Helper function to handle API calls
+      async function fetchData(url, method = 'GET', params = null) {
+        try {
+          const options = {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+          };
+
+          if (params) {
+            url += '?' + new URLSearchParams(params).toString();
+          }
+
+          const response = await fetch(`${BASE_URL}${url}`, options);
+          if (!response.ok) {
+            throw new Error(`Error: ${response.statusText}`);
+          }
+
+          return response.json();
+        } catch (error) {
+          console.error('API Error:', error);
+          alert('Something went wrong, please try again.');
+        }
+      }
+
+      // Update the status on the page
+      function updateStatus(id, text, colorClass) {
+        const statusElement = document.getElementById(id);
+        statusElement.textContent = text;
+        statusElement.className = `status ${colorClass}`;
+      }
+
+      // LED Control
+      function setupLedControl(ledId, statusId) {
+        const ledOnButton = document.getElementById(`${ledId}-on`);
+        const ledOffButton = document.getElementById(`${ledId}-off`);
+
+        ledOnButton.addEventListener('click', async () => {
+          await fetchData(`/led/${ledId}`, 'POST', { state: 'on' });
+          updateStatus(statusId, 'On', 'text-green-600');
+        });
+
+        ledOffButton.addEventListener('click', async () => {
+          await fetchData(`/led/${ledId}`, 'POST', { state: 'off' });
+          updateStatus(statusId, 'Off', 'text-red-600');
+        });
+      }
+
+      // Fan Control
+      function setupFanControl() {
+        const fanOnButton = document.getElementById('fan-on');
+        const fanOffButton = document.getElementById('fan-off');
+
+        fanOnButton.addEventListener('click', async () => {
+          await fetchData('/fan', 'POST', { state: 'on' });
+          updateStatus('fan-status', 'On', 'text-green-600');
+        });
+
+        fanOffButton.addEventListener('click', async () => {
+          await fetchData('/fan', 'POST', { state: 'off' });
+          updateStatus('fan-status', 'Off', 'text-red-600');
+        });
+      }
+
+      // Alarm Control
+      function setupAlarmControl() {
+        const alarmForm = document.getElementById('alarm-form');
+        alarmForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const alarmTime = document.getElementById('alarm').value;
+          await fetchData('/alarm', 'POST', { time: alarmTime });
+          updateStatus('alarm-time', alarmTime, 'text-blue-600');
+        });
+      }
+
+      // Health Check
+      function setupHealthCheck() {
+        const healthButton = document.getElementById('check-health');
+        healthButton.addEventListener('click', async () => {
+          const data = await fetchData('/health');
+          updateStatus('health-status', data.status || 'Unknown', 'text-green-600');
+        });
+
+        // Initial health check on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+          const data = await fetchData('/health');
+          updateStatus('health-status', data.status || 'Unknown', 'text-blue-600');
+        });
+      }
+
+      // Initialize all event listeners
+      function initializeApp() {
+        setupLedControl('led1', 'led1-status');
+        setupLedControl('led2', 'led2-status');
+        setupFanControl();
+        setupAlarmControl();
+        setupHealthCheck();
+      }
+
+      // Initialize the application once the DOM is fully loaded
+      document.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+  </body>
+</html>

@@ -6,3 +6,4 @@
 
 platformio.pdf
 .DS_Store
+venv/
